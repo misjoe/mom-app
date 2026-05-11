@@ -114,6 +114,42 @@
             padding-top: 10px;
             margin-top: 10px;
         }
+
+        /* 計算過程說明區塊樣式 */
+        .explanation-box {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #fff;
+            border: 1px dashed #999;
+            border-radius: 8px;
+            font-size: 16px;
+            color: #444;
+            line-height: 1.6;
+        }
+
+        .explanation-box h4 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            color: #0056b3;
+            font-size: 18px;
+        }
+
+        .explanation-box p {
+            margin: 0 0 15px 0;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .explanation-box p:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+
+        .math-highlight {
+            color: #d9534f;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -200,6 +236,11 @@
             <span>應繳總計：</span>
             <span id="res-total">0 元</span>
         </div>
+
+        <!-- 算式說明區塊 -->
+        <div class="explanation-box" id="explanation-box">
+            <!-- 這裡的內容會由程式自動產生 -->
+        </div>
     </div>
 </div>
 
@@ -246,33 +287,33 @@
         let m2 = parseInt(parts2[1], 10);
         let d2 = parseInt(parts2[2], 10);
         
-        // 【每月皆以 30 日計算】若輸入的日期為 31 號，視為 30 號
         if (d1 === 31) d1 = 30;
         if (d2 === 31) d2 = 30;
         
-        // 代入公式：(年差 * 360) + (月差 * 30) + (日差)
-        // 此公式算出的差值 (d2 - d1) 剛好符合「算頭不算尾 (起始日計入，迄日不計入)」的邏輯
         let diff = (y2 - y1) * 360 + (m2 - m1) * 30 + (d2 - d1);
-        
         return diff >= 0 ? diff : 0; 
     }
 
-    // 將數字加上千分位逗號 (用於結果顯示)
+    // 將數字加上千分位逗號 
     function formatMoney(num) {
         return Math.round(num).toLocaleString('zh-TW');
     }
 
     // 主要計算邏輯
     function calculateAll() {
-        // 取得輸入值，需先移除千位分隔符的逗號再轉為數字
+        // 取得輸入值
         let principalStr = document.getElementById('principal').value.replace(/,/g, '');
         let damagesStr = document.getElementById('damages').value.replace(/,/g, '');
         
         let principal = parseFloat(principalStr) || 0;
-        let intRate = (parseFloat(document.getElementById('int-rate').value) || 0) / 100;
-        let delayRate = (parseFloat(document.getElementById('delay-rate').value) || 0) / 100;
-        let penRate = (parseFloat(document.getElementById('pen-rate').value) || 0) / 100;
+        let inputIntRate = parseFloat(document.getElementById('int-rate').value) || 0;
+        let inputDelayRate = parseFloat(document.getElementById('delay-rate').value) || 0;
+        let inputPenRate = parseFloat(document.getElementById('pen-rate').value) || 0;
         let damages = parseFloat(damagesStr) || 0;
+
+        let intRate = inputIntRate / 100;
+        let delayRate = inputDelayRate / 100;
+        let penRate = inputPenRate / 100;
 
         let intStart = document.getElementById('int-start').value;
         let intEnd = document.getElementById('int-end').value;
@@ -283,13 +324,13 @@
         let intDays = getDaysDiff(intStart, intEnd);
         let penDays = getDaysDiff(penStart, penEnd);
 
-        // 公式計算 (維持您除以 365 的設定)
+        // 公式計算 
         let interest = principal * intRate * intDays / 365;
         let delayInterest = interest * delayRate;
         let penalty = principal * penRate * penDays / 365;
         let total = interest + delayInterest + penalty + damages;
 
-        // 顯示結果 (自動帶入千位分隔符)
+        // 顯示結果
         document.getElementById('res-int-days').innerText = intDays + " 天";
         document.getElementById('res-pen-days').innerText = penDays + " 天";
         
@@ -299,6 +340,31 @@
         document.getElementById('res-damages').innerText = formatMoney(damages) + " 元";
         document.getElementById('res-total').innerText = formatMoney(total) + " 元";
 
+        // 動態產生計算過程說明
+        let explanationHTML = `
+            <h4>計算過程說明</h4>
+            <p><strong>📝 利息：</strong><br>
+            公式：抵押債權金額 × 年利率 × 利息日數 ÷ 365 天<br>
+            = ${formatMoney(principal)} × ${inputIntRate}% × ${intDays} 天 ÷ 365 天<br>
+            = <span class="math-highlight">${formatMoney(interest)}</span> 元</p>
+
+            <p><strong>📝 遲延利息：</strong><br>
+            公式：利息 × 遲延利息年利率<br>
+            = ${formatMoney(interest)} × ${inputDelayRate}%<br>
+            = <span class="math-highlight">${formatMoney(delayInterest)}</span> 元</p>
+
+            <p><strong>📝 違約金：</strong><br>
+            公式：抵押債權金額 × 違約年利率 × 違約日數 ÷ 365 天<br>
+            = ${formatMoney(principal)} × ${inputPenRate}% × ${penDays} 天 ÷ 365 天<br>
+            = <span class="math-highlight">${formatMoney(penalty)}</span> 元</p>
+
+            <p><strong>💰 總計計算：</strong><br>
+            = 利息 + 遲延利息 + 違約金 + 賠償金<br>
+            = ${formatMoney(interest)} + ${formatMoney(delayInterest)} + ${formatMoney(penalty)} + ${formatMoney(damages)}<br>
+            = <span class="math-highlight">${formatMoney(total)}</span> 元</p>
+        `;
+        
+        document.getElementById('explanation-box').innerHTML = explanationHTML;
         document.getElementById('result-box').style.display = 'block';
     }
 </script>
