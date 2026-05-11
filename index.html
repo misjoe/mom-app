@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>利息與違約金計算機</title>
+    <style>
+        :root {
+            --primary-color: #0056b3;
+            --bg-color: #f4f7f6;
+            --card-bg: #ffffff;
+            --text-color: #333333;
+            --border-color: #cccccc;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 15px;
+            font-size: 18px;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        h2 {
+            text-align: center;
+            color: var(--primary-color);
+            margin-top: 0;
+            font-size: 24px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #555;
+        }
+
+        input[type="number"],
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            font-size: 18px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            box-sizing: border-box;
+            background-color: #fafafa;
+        }
+        
+        input:focus {
+            border-color: var(--primary-color);
+            outline: none;
+            background-color: #fff;
+        }
+
+        .input-hint {
+            font-size: 14px;
+            color: #888;
+            margin-top: 4px;
+            display: block;
+        }
+
+        button {
+            width: 100%;
+            padding: 15px;
+            font-size: 20px;
+            font-weight: bold;
+            color: #fff;
+            background-color: var(--primary-color);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 10px;
+            box-shadow: 0 2px 4px rgba(0,86,179,0.3);
+        }
+
+        button:active {
+            background-color: #004494;
+        }
+
+        .result-box {
+            margin-top: 25px;
+            padding: 20px;
+            background-color: #eef2f5;
+            border-radius: 8px;
+            border-left: 5px solid var(--primary-color);
+        }
+
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+
+        .result-item.total {
+            font-size: 22px;
+            font-weight: bold;
+            color: #d9534f;
+            border-top: 2px solid #ccc;
+            padding-top: 10px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>利息與違約金計算機</h2>
+
+    <div class="form-group">
+        <label>抵押債權金額 (元)</label>
+        <input type="text" id="principal" inputmode="numeric" placeholder="例如: 1,000,000" onblur="formatInput(this)" onfocus="unformatInput(this)">
+    </div>
+
+    <div class="form-group">
+        <label>利息起日</label>
+        <input type="text" id="int-start" placeholder="例如: 1120101" maxlength="9" onblur="autoFormatDate(this)">
+        <span class="input-hint">可直接輸入7位數字，自動轉換為 民國年/月/日</span>
+    </div>
+
+    <div class="form-group">
+        <label>利息迄日</label>
+        <input type="text" id="int-end" placeholder="例如: 1121231" maxlength="9" onblur="autoFormatDate(this)">
+    </div>
+
+    <div class="form-group">
+        <label>利息年利率 (%)</label>
+        <input type="number" id="int-rate" step="0.01" inputmode="decimal" placeholder="例如: 5">
+    </div>
+
+    <div class="form-group">
+        <label>遲延利息年利率 (%)</label>
+        <input type="number" id="delay-rate" step="0.01" inputmode="decimal" placeholder="例如: 2">
+    </div>
+
+    <div class="form-group">
+        <label>違約起日</label>
+        <input type="text" id="pen-start" placeholder="例如: 1130101" maxlength="9" onblur="autoFormatDate(this)">
+        <span class="input-hint">可直接輸入7位數字，自動轉換為 民國年/月/日</span>
+    </div>
+
+    <div class="form-group">
+        <label>違約迄日</label>
+        <input type="text" id="pen-end" placeholder="例如: 1130510" maxlength="9" onblur="autoFormatDate(this)">
+    </div>
+
+    <div class="form-group">
+        <label>違約年利率 (%)</label>
+        <input type="number" id="pen-rate" step="0.01" inputmode="decimal" placeholder="例如: 1.5">
+    </div>
+
+    <div class="form-group">
+        <label>債務不履行之賠償金 (元)</label>
+        <input type="text" id="damages" inputmode="numeric" placeholder="例如: 50,000" onblur="formatInput(this)" onfocus="unformatInput(this)">
+    </div>
+
+    <button onclick="calculateAll()">開始計算</button>
+
+    <div class="result-box" id="result-box" style="display: none;">
+        <div class="result-item">
+            <span>利息日數：</span>
+            <span id="res-int-days">0 天</span>
+        </div>
+        <div class="result-item">
+            <span>違約日數：</span>
+            <span id="res-pen-days">0 天</span>
+        </div>
+        <hr style="border: 0; border-top: 1px dashed #ccc; margin: 15px 0;">
+        <div class="result-item">
+            <span>利息：</span>
+            <span id="res-interest">0 元</span>
+        </div>
+        <div class="result-item">
+            <span>遲延利息：</span>
+            <span id="res-delay">0 元</span>
+        </div>
+        <div class="result-item">
+            <span>違約金：</span>
+            <span id="res-penalty">0 元</span>
+        </div>
+        <div class="result-item">
+            <span>賠償金：</span>
+            <span id="res-damages">0 元</span>
+        </div>
+        <div class="result-item total">
+            <span>應繳總計：</span>
+            <span id="res-total">0 元</span>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 自動格式化日期：將 7位數字 轉換為 民國年/月/日
+    function autoFormatDate(el) {
+        let val = el.value.replace(/\D/g, ''); 
+        if (val.length === 7) {
+            el.value = val.substring(0, 3) + '/' + val.substring(3, 5) + '/' + val.substring(5, 7);
+        } else if (val.length === 6) {
+            el.value = val.substring(0, 2) + '/' + val.substring(2, 4) + '/' + val.substring(4, 6);
+        }
+    }
+
+    // 金額輸入框：失去焦點時加上千位分隔符
+    function formatInput(el) {
+        if (!el.value) return;
+        let num = parseFloat(el.value.replace(/,/g, ''));
+        if (!isNaN(num)) {
+            el.value = num.toLocaleString('zh-TW');
+        }
+    }
+
+    // 金額輸入框：獲得焦點時移除千位分隔符，方便修改
+    function unformatInput(el) {
+        if (!el.value) return;
+        el.value = el.value.replace(/,/g, '');
+    }
+
+    // 計算兩個日期之間的相差天數 (每月皆以30日計算，起始日計入，迄日不計入)
+    function getDaysDiff(startDateStr, endDateStr) {
+        if (!startDateStr || !endDateStr) return 0;
+        
+        let parts1 = startDateStr.split(/[\/-]/);
+        let parts2 = endDateStr.split(/[\/-]/);
+        
+        if (parts1.length !== 3 || parts2.length !== 3) return 0;
+        
+        let y1 = parseInt(parts1[0], 10);
+        let m1 = parseInt(parts1[1], 10);
+        let d1 = parseInt(parts1[2], 10);
+        
+        let y2 = parseInt(parts2[0], 10);
+        let m2 = parseInt(parts2[1], 10);
+        let d2 = parseInt(parts2[2], 10);
+        
+        // 【每月皆以 30 日計算】若輸入的日期為 31 號，視為 30 號
+        if (d1 === 31) d1 = 30;
+        if (d2 === 31) d2 = 30;
+        
+        // 代入公式：(年差 * 360) + (月差 * 30) + (日差)
+        // 此公式算出的差值 (d2 - d1) 剛好符合「算頭不算尾 (起始日計入，迄日不計入)」的邏輯
+        let diff = (y2 - y1) * 360 + (m2 - m1) * 30 + (d2 - d1);
+        
+        return diff >= 0 ? diff : 0; 
+    }
+
+    // 將數字加上千分位逗號 (用於結果顯示)
+    function formatMoney(num) {
+        return Math.round(num).toLocaleString('zh-TW');
+    }
+
+    // 主要計算邏輯
+    function calculateAll() {
+        // 取得輸入值，需先移除千位分隔符的逗號再轉為數字
+        let principalStr = document.getElementById('principal').value.replace(/,/g, '');
+        let damagesStr = document.getElementById('damages').value.replace(/,/g, '');
+        
+        let principal = parseFloat(principalStr) || 0;
+        let intRate = (parseFloat(document.getElementById('int-rate').value) || 0) / 100;
+        let delayRate = (parseFloat(document.getElementById('delay-rate').value) || 0) / 100;
+        let penRate = (parseFloat(document.getElementById('pen-rate').value) || 0) / 100;
+        let damages = parseFloat(damagesStr) || 0;
+
+        let intStart = document.getElementById('int-start').value;
+        let intEnd = document.getElementById('int-end').value;
+        let penStart = document.getElementById('pen-start').value;
+        let penEnd = document.getElementById('pen-end').value;
+
+        // 計算日數
+        let intDays = getDaysDiff(intStart, intEnd);
+        let penDays = getDaysDiff(penStart, penEnd);
+
+        // 公式計算 (維持您除以 365 的設定)
+        let interest = principal * intRate * intDays / 365;
+        let delayInterest = interest * delayRate;
+        let penalty = principal * penRate * penDays / 365;
+        let total = interest + delayInterest + penalty + damages;
+
+        // 顯示結果 (自動帶入千位分隔符)
+        document.getElementById('res-int-days').innerText = intDays + " 天";
+        document.getElementById('res-pen-days').innerText = penDays + " 天";
+        
+        document.getElementById('res-interest').innerText = formatMoney(interest) + " 元";
+        document.getElementById('res-delay').innerText = formatMoney(delayInterest) + " 元";
+        document.getElementById('res-penalty').innerText = formatMoney(penalty) + " 元";
+        document.getElementById('res-damages').innerText = formatMoney(damages) + " 元";
+        document.getElementById('res-total').innerText = formatMoney(total) + " 元";
+
+        document.getElementById('result-box').style.display = 'block';
+    }
+</script>
+
+</body>
+</html>
